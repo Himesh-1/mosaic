@@ -1,0 +1,63 @@
+@import "./tokens.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  background-color: var(--mosaic-color-surface-canvas);
+  color: var(--mosaic-color-text-primary);
+  font-family: var(--mosaic-font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+
+a {
+  color: var(--mosaic-color-brand-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--mosaic-color-brand-strong);
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+input,
+textarea,
+select {
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+:focus-visible {
+  outline: 2px solid var(--mosaic-color-brand-primary);
+  outline-offset: 2px;
+}
+
+/* Layout Utilities */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--mosaic-space-4);
+}
+
+@media (min-width: 768px) {
+  .container {
+    padding: 0 var(--mosaic-space-6);
+  }
+}

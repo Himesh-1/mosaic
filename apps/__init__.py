@@ -1,0 +1,1 @@
+# Mosaic apps package

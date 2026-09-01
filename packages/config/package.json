@@ -1,0 +1,12 @@
+{
+  "name": "@mosaic/config",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    "./tsconfig.base.json": "./tsconfig.base.json",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "tsconfig.base.json"
+  ]
+}

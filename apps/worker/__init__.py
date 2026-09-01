@@ -1,0 +1,1 @@
+# Mosaic background worker package

@@ -1,0 +1,28 @@
+{
+  "name": "mosaic-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A temporary digital world for real-world groups",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=apps/web",
+    "dev:api": ".venv/Scripts/python -m uvicorn apps.api.src.main:app --reload --port 8000",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test:web && npm run test:api",
+    "test:web": "npm run test --workspace=apps/web --if-present",
+    "test:api": "python -m pytest apps/api/tests",
+    "test:e2e": "playwright test",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "generate:contracts": "python -m apps.api.src.scripts.export_openapi && npm run generate --workspace=packages/contracts"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3"
+  }
+}
