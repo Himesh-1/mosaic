@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const apiOrigin = process.env.API_ORIGIN || "http://localhost:8000";
+
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ["@mosaic/contracts"],
@@ -6,7 +8,7 @@ const nextConfig = {
     return [
       {
         source: "/api/v1/:path*",
-        destination: "http://localhost:8000/api/v1/:path*",
+        destination: `${apiOrigin}/api/v1/:path*`,
       },
     ];
   },
