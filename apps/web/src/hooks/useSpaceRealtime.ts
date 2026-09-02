@@ -180,18 +180,23 @@ export function useSpaceRealtime({
           }
         };
 
+        let retryCount = 0;
+
         ws.onclose = () => {
           if (isUnmounted) return;
           setConnectionStatus("offline");
           if (heartbeatIntervalRef.current)
             clearInterval(heartbeatIntervalRef.current);
 
-          // Reconnect after 3 seconds
+          // Exponential backoff: 2s, 4s, 8s, 16s, max 30s
+          const delay = Math.min(2000 * Math.pow(1.5, retryCount), 30000);
+          retryCount++;
+
           if (reconnectTimeoutRef.current)
             clearTimeout(reconnectTimeoutRef.current);
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
-          }, 3000);
+          }, delay);
         };
 
         ws.onerror = () => {
