@@ -32,13 +32,17 @@ def generate_session_token() -> str:
 
 
 def set_session_cookie(response: Response, session_token: str) -> None:
+    is_prod = settings.ENVIRONMENT.lower() == "production"
+    samesite = "none" if (is_prod and not settings.COOKIE_DOMAIN) else settings.COOKIE_SAME_SITE
+    secure = True if (is_prod or samesite == "none") else settings.COOKIE_SECURE
+
     cookie_kwargs = {
         "key": settings.SESSION_COOKIE_NAME,
         "value": session_token,
         "max_age": settings.SESSION_MAX_AGE_SECONDS,
         "httponly": True,
-        "secure": settings.COOKIE_SECURE,
-        "samesite": settings.COOKIE_SAME_SITE,
+        "secure": secure,
+        "samesite": samesite,
         "path": "/",
     }
     if settings.COOKIE_DOMAIN:
@@ -47,11 +51,15 @@ def set_session_cookie(response: Response, session_token: str) -> None:
 
 
 def clear_session_cookie(response: Response) -> None:
+    is_prod = settings.ENVIRONMENT.lower() == "production"
+    samesite = "none" if (is_prod and not settings.COOKIE_DOMAIN) else settings.COOKIE_SAME_SITE
+    secure = True if (is_prod or samesite == "none") else settings.COOKIE_SECURE
+
     cookie_kwargs = {
         "key": settings.SESSION_COOKIE_NAME,
         "httponly": True,
-        "secure": settings.COOKIE_SECURE,
-        "samesite": settings.COOKIE_SAME_SITE,
+        "secure": secure,
+        "samesite": samesite,
         "path": "/",
     }
     if settings.COOKIE_DOMAIN:

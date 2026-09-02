@@ -31,8 +31,20 @@ async def authenticate_websocket(websocket: WebSocket) -> Optional[Tuple[DeviceS
     if not session_token:
         session_token = websocket.query_params.get("token")
 
+    # 3. Try from Authorization header
     if not session_token:
+        auth_hdr = websocket.headers.get("authorization")
+        if auth_hdr and auth_hdr.startswith("Bearer "):
+            session_token = auth_hdr[7:]
+
+    if not session_token:
+        logger.warning(
+            f"WebSocket authentication rejected: no token provided. "
+            f"Cookies: {list(websocket.cookies.keys())}, Query params: {list(websocket.query_params.keys())}"
+        )
         return None
+
+    clean_token = session_token.strip().strip('"').strip("'")
 
     now = datetime.now(timezone.utc)
     async with db_module.AsyncSessionLocal() as db:
@@ -40,7 +52,7 @@ async def authenticate_websocket(websocket: WebSocket) -> Optional[Tuple[DeviceS
             select(DeviceSession)
             .options(selectinload(DeviceSession.user))
             .where(
-                (DeviceSession.session_token == session_token) | (DeviceSession.id == session_token),
+                (DeviceSession.session_token == clean_token) | (DeviceSession.id == clean_token),
                 DeviceSession.revoked_at.is_(None),
             )
         )
@@ -48,10 +60,12 @@ async def authenticate_websocket(websocket: WebSocket) -> Optional[Tuple[DeviceS
         device_session = result.scalars().first()
 
         if not device_session or not device_session.user:
+            logger.warning(f"WebSocket authentication rejected: no active session found for token prefix '{clean_token[:8]}...'")
             return None
 
         exp = device_session.expires_at if device_session.expires_at.tzinfo else device_session.expires_at.replace(tzinfo=timezone.utc)
         if exp <= now:
+            logger.warning(f"WebSocket authentication rejected: session expired at {exp}")
             return None
 
         # Update last seen
@@ -64,13 +78,19 @@ async def authenticate_websocket(websocket: WebSocket) -> Optional[Tuple[DeviceS
 async def websocket_realtime_endpoint(
     websocket: WebSocket,
 ):
+    await websocket.accept()
+
     session_user = await authenticate_websocket(websocket)
     if not session_user:
+        await websocket.send_json({
+            "type": "error",
+            "code": "unauthorized",
+            "message": "Authentication required. Provide valid session cookie or ?token= parameter.",
+        })
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
     device_session, user = session_user
-    await websocket.accept()
 
     connection_manager.register(websocket, device_session.id, user.id)
     logger.info(f"WebSocket connected: user {user.id} ({user.display_name})")

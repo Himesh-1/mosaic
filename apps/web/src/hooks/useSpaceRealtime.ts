@@ -20,7 +20,7 @@ export function useSpaceRealtime({
   onEventReceived,
   onRawMessageReceived,
 }: UseSpaceRealtimeOptions) {
-  const { session } = useAuth();
+  const { session, isLoading: isAuthLoading } = useAuth();
   const [events, setEvents] = useState<ActivityEventResponse[]>(initialEvents);
   const [connectionStatus, setConnectionStatus] =
     useState<ConnectionStatus>("offline");
@@ -91,22 +91,38 @@ export function useSpaceRealtime({
 
     let isUnmounted = false;
 
-    // Determine WS URL (Next.js dev server on :3000 does not proxy WebSockets, so point to :8000 in dev)
-    let wsUrl = process.env.NEXT_PUBLIC_WS_URL;
-    if (!wsUrl) {
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      if (window.location.port === "3000") {
-        wsUrl = `${protocol}//${window.location.hostname}:8000/api/v1/realtime`;
-      } else {
-        wsUrl = `${protocol}//${window.location.host}/api/v1/realtime`;
+    const getStoredToken = () => {
+      if (session?.token) return session.token;
+      if (session?.id) return session.id;
+      if (typeof window !== "undefined") {
+        return localStorage.getItem("mosaic_session_token") || null;
       }
+      return null;
+    };
+
+    const storedToken = getStoredToken();
+    if (isAuthLoading && !storedToken) {
+      return;
     }
 
-    const token = session?.token || session?.id;
-    if (token) {
-      const separator = wsUrl.includes("?") ? "&" : "?";
-      wsUrl = `${wsUrl}${separator}token=${encodeURIComponent(token)}`;
-    }
+    const buildWsUrl = () => {
+      let base = process.env.NEXT_PUBLIC_WS_URL;
+      if (!base) {
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        if (window.location.port === "3000") {
+          base = `${protocol}//${window.location.hostname}:8000/api/v1/realtime`;
+        } else {
+          base = `${protocol}//${window.location.host}/api/v1/realtime`;
+        }
+      }
+
+      const activeToken = getStoredToken();
+      if (activeToken) {
+        const separator = base.includes("?") ? "&" : "?";
+        return `${base}${separator}token=${encodeURIComponent(activeToken)}`;
+      }
+      return base;
+    };
 
     const connect = () => {
       if (isUnmounted) return;
@@ -121,7 +137,8 @@ export function useSpaceRealtime({
       setConnectionStatus("reconnecting");
 
       try {
-        const ws = new WebSocket(wsUrl!);
+        const currentUrl = buildWsUrl();
+        const ws = new WebSocket(currentUrl);
         wsRef.current = ws;
 
         ws.onopen = () => {
@@ -162,6 +179,13 @@ export function useSpaceRealtime({
           if (isUnmounted) return;
           try {
             const msg = JSON.parse(event.data);
+
+            if (msg.type === "error" && msg.code === "unauthorized") {
+              setConnectionStatus("offline");
+              if (reconnectTimeoutRef.current)
+                clearTimeout(reconnectTimeoutRef.current);
+              return;
+            }
 
             if (onRawMessageReceivedRef.current) {
               onRawMessageReceivedRef.current(msg);
