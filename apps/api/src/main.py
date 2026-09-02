@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
@@ -9,6 +10,7 @@ from fastapi.responses import JSONResponse
 from apps.api.src.config import get_settings
 from apps.api.src.database import Base, engine
 from apps.api.src.middleware.request_id import RequestIdMiddleware
+from apps.worker.main import run_worker
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("mosaic.api")
@@ -21,9 +23,21 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Database initialized.")
+
+    # Start background worker task
+    worker_task = asyncio.create_task(run_worker())
+
     yield
+
     logger.info("Shutting down API service...")
+    worker_task.cancel()
+    try:
+        await worker_task
+    except (asyncio.CancelledError, Exception) as exc:
+        logger.debug(f"Worker task terminated: {exc}")
+
     await engine.dispose()
+
 
 
 app = FastAPI(
