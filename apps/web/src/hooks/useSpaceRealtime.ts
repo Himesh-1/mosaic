@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { ActivityEventResponse } from "@mosaic/contracts";
 import { api } from "../lib/api";
+import { useAuth } from "../context/AuthContext";
 
 export type ConnectionStatus = "connected" | "reconnecting" | "offline";
 
@@ -19,6 +20,7 @@ export function useSpaceRealtime({
   onEventReceived,
   onRawMessageReceived,
 }: UseSpaceRealtimeOptions) {
+  const { session } = useAuth();
   const [events, setEvents] = useState<ActivityEventResponse[]>(initialEvents);
   const [connectionStatus, setConnectionStatus] =
     useState<ConnectionStatus>("offline");
@@ -98,6 +100,12 @@ export function useSpaceRealtime({
       } else {
         wsUrl = `${protocol}//${window.location.host}/api/v1/realtime`;
       }
+    }
+
+    const token = session?.token || session?.id;
+    if (token) {
+      const separator = wsUrl.includes("?") ? "&" : "?";
+      wsUrl = `${wsUrl}${separator}token=${encodeURIComponent(token)}`;
     }
 
     const connect = () => {
@@ -234,7 +242,7 @@ export function useSpaceRealtime({
         }
       }
     };
-  }, [spaceId, performCatchup, mergeEvents]);
+  }, [spaceId, performCatchup, mergeEvents, session?.token, session?.id]);
 
   return {
     events,

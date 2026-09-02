@@ -34,6 +34,7 @@ class UserProfile(BaseModel):
 
 class DeviceSessionInfo(BaseModel):
     id: str
+    token: Optional[str] = None
     device_label: Optional[str] = None
     last_seen_at: datetime
     expires_at: datetime

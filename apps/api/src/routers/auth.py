@@ -90,6 +90,7 @@ async def register(
         ),
         session=DeviceSessionInfo(
             id=device_session.id,
+            token=device_session.session_token,
             device_label=device_session.device_label,
             last_seen_at=device_session.last_seen_at,
             expires_at=device_session.expires_at,
@@ -145,6 +146,7 @@ async def login(
         ),
         session=DeviceSessionInfo(
             id=device_session.id,
+            token=device_session.session_token,
             device_label=device_session.device_label,
             last_seen_at=device_session.last_seen_at,
             expires_at=device_session.expires_at,
@@ -201,6 +203,7 @@ async def guest_session(
         ),
         session=DeviceSessionInfo(
             id=device_session.id,
+            token=device_session.session_token,
             device_label=device_session.device_label,
             last_seen_at=device_session.last_seen_at,
             expires_at=device_session.expires_at,
@@ -237,6 +240,7 @@ async def get_me(
         ),
         session=DeviceSessionInfo(
             id=device_session.id,
+            token=device_session.session_token,
             device_label=device_session.device_label,
             last_seen_at=device_session.last_seen_at,
             expires_at=device_session.expires_at,

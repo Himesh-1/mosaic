@@ -40,7 +40,7 @@ async def authenticate_websocket(websocket: WebSocket) -> Optional[Tuple[DeviceS
             select(DeviceSession)
             .options(selectinload(DeviceSession.user))
             .where(
-                DeviceSession.session_token == session_token,
+                (DeviceSession.session_token == session_token) | (DeviceSession.id == session_token),
                 DeviceSession.revoked_at.is_(None),
             )
         )

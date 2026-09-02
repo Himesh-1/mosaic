@@ -10,6 +10,7 @@ export interface UserProfile {
 
 export interface DeviceSessionInfo {
   id: string;
+  token?: string | null;
   device_label?: string | null;
   last_seen_at: string;
   expires_at: string;
