@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import Optional
+from typing import Literal, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     SESSION_COOKIE_NAME: str = "mosaic_session"
     COOKIE_DOMAIN: Optional[str] = None
     COOKIE_SECURE: bool = False
-    COOKIE_SAME_SITE: str = "lax"
+    COOKIE_SAME_SITE: Literal["lax", "strict", "none"] = "lax"
     SESSION_MAX_AGE_SECONDS: int = 60 * 60 * 24 * 14  # 14 days
 
     # Limits

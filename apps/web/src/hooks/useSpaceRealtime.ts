@@ -101,7 +101,8 @@ export function useSpaceRealtime({
     };
 
     const storedToken = getStoredToken();
-    if (isAuthLoading && !storedToken) {
+    if (!storedToken) {
+      setConnectionStatus("offline");
       return;
     }
 

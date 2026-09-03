@@ -1,6 +1,6 @@
 import secrets
 from datetime import datetime, timezone, timedelta
-from typing import Optional, Tuple
+from typing import Literal, Optional, Tuple
 import bcrypt
 from fastapi import Cookie, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
@@ -31,40 +31,39 @@ def generate_session_token() -> str:
     return secrets.token_urlsafe(48)
 
 
+SameSiteType = Literal["lax", "strict", "none"]
+
+
 def set_session_cookie(response: Response, session_token: str) -> None:
     is_prod = settings.ENVIRONMENT.lower() == "production"
-    samesite = "none" if (is_prod and not settings.COOKIE_DOMAIN) else settings.COOKIE_SAME_SITE
+    samesite: SameSiteType = "none" if (is_prod and not settings.COOKIE_DOMAIN) else settings.COOKIE_SAME_SITE
     secure = True if (is_prod or samesite == "none") else settings.COOKIE_SECURE
 
-    cookie_kwargs = {
-        "key": settings.SESSION_COOKIE_NAME,
-        "value": session_token,
-        "max_age": settings.SESSION_MAX_AGE_SECONDS,
-        "httponly": True,
-        "secure": secure,
-        "samesite": samesite,
-        "path": "/",
-    }
-    if settings.COOKIE_DOMAIN:
-        cookie_kwargs["domain"] = settings.COOKIE_DOMAIN
-    response.set_cookie(**cookie_kwargs)
+    response.set_cookie(
+        key=settings.SESSION_COOKIE_NAME,
+        value=session_token,
+        max_age=settings.SESSION_MAX_AGE_SECONDS,
+        httponly=True,
+        secure=secure,
+        samesite=samesite,
+        path="/",
+        domain=settings.COOKIE_DOMAIN,
+    )
 
 
 def clear_session_cookie(response: Response) -> None:
     is_prod = settings.ENVIRONMENT.lower() == "production"
-    samesite = "none" if (is_prod and not settings.COOKIE_DOMAIN) else settings.COOKIE_SAME_SITE
+    samesite: SameSiteType = "none" if (is_prod and not settings.COOKIE_DOMAIN) else settings.COOKIE_SAME_SITE
     secure = True if (is_prod or samesite == "none") else settings.COOKIE_SECURE
 
-    cookie_kwargs = {
-        "key": settings.SESSION_COOKIE_NAME,
-        "httponly": True,
-        "secure": secure,
-        "samesite": samesite,
-        "path": "/",
-    }
-    if settings.COOKIE_DOMAIN:
-        cookie_kwargs["domain"] = settings.COOKIE_DOMAIN
-    response.delete_cookie(**cookie_kwargs)
+    response.delete_cookie(
+        key=settings.SESSION_COOKIE_NAME,
+        httponly=True,
+        secure=secure,
+        samesite=samesite,
+        path="/",
+        domain=settings.COOKIE_DOMAIN,
+    )
 
 
 async def get_session_and_user(
