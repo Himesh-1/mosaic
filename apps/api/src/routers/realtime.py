@@ -162,12 +162,13 @@ async def websocket_realtime_endpoint(
                 connection_manager.subscribe(websocket, space_id, device_session.id, user.id)
                 subscribed_spaces.add(space_id)
 
-                # Mark presence
-                await presence_service.heartbeat(
+                # Mark presence on subscribe
+                await presence_service.register_session(
                     space_id=space_id,
                     session_id=device_session.id,
                     user_id=user.id,
                     display_name=user.display_name,
+                    ttl_seconds=120,
                 )
 
                 # Acknowledge subscription

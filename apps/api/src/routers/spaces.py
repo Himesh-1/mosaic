@@ -316,6 +316,8 @@ async def list_members(
     result = await db.execute(stmt)
     memberships = result.scalars().all()
 
+    active_user_ids = connection_manager.get_active_user_ids(space_id)
+
     profiles = [
         MemberProfile(
             user_id=m.user.id,
@@ -324,7 +326,7 @@ async def list_members(
             role=m.role,
             joined_at=m.joined_at,
             is_guest=m.user.is_guest,
-            presence_status="online" if m.user.id == membership.user_id else "offline",
+            presence_status="online" if (m.user.id in active_user_ids or m.user.id == membership.user_id) else "offline",
         )
         for m in memberships
     ]

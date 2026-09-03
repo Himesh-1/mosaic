@@ -18,6 +18,7 @@ class Settings(BaseSettings):
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
+    ENABLE_REDIS_PRESENCE: bool = False
 
     # Object Storage (S3 / MinIO)
     OBJECT_STORAGE_ENDPOINT: str = "http://localhost:9000"

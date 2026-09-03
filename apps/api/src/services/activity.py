@@ -42,6 +42,12 @@ class ConnectionManager:
                 sub for sub in self._space_subscriptions[space_id] if sub[0] != websocket
             }
 
+    def get_active_user_ids(self, space_id: str) -> Set[str]:
+        """Returns the set of user IDs currently subscribed via WebSocket to space_id."""
+        if space_id not in self._space_subscriptions:
+            return set()
+        return {user_id for _, _, user_id in self._space_subscriptions[space_id]}
+
     async def broadcast_to_space(self, space_id: str, message: dict) -> None:
         """Broadcast JSON message to all active WebSocket clients subscribed to space_id."""
         if space_id not in self._space_subscriptions:

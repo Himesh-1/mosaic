@@ -34,6 +34,8 @@ export function useSpaceRealtime({
   const wsRef = useRef<WebSocket | null>(null);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const retryCountRef = useRef<number>(0);
+  const authFailedRef = useRef<boolean>(false);
   const latestSequenceRef = useRef<number>(latestSequence);
   latestSequenceRef.current = latestSequence;
 
@@ -91,6 +93,12 @@ export function useSpaceRealtime({
 
     let isUnmounted = false;
 
+    // Do not connect until auth context has resolved, unless a token is already active
+    if (isAuthLoading && !session?.token && !session?.id) {
+      setConnectionStatus("offline");
+      return;
+    }
+
     const getStoredToken = () => {
       if (session?.token) return session.token;
       if (session?.id) return session.id;
@@ -108,6 +116,14 @@ export function useSpaceRealtime({
 
     const buildWsUrl = () => {
       let base = process.env.NEXT_PUBLIC_WS_URL;
+      if (!base && process.env.NEXT_PUBLIC_API_URL) {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+        const wsProtocol = apiUrl.startsWith("https:") ? "wss:" : "ws:";
+        const cleanBase = apiUrl
+          .replace(/^https?:\/\//, "")
+          .replace(/\/api\/v1\/?$/, "");
+        base = `${wsProtocol}//${cleanBase}/api/v1/realtime`;
+      }
       if (!base) {
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
         if (window.location.port === "3000") {
@@ -147,6 +163,8 @@ export function useSpaceRealtime({
             ws.close();
             return;
           }
+          retryCountRef.current = 0;
+          authFailedRef.current = false;
           setConnectionStatus("connected");
 
           // Subscribe to Space with latest sequence cursor
@@ -161,7 +179,7 @@ export function useSpaceRealtime({
           // Perform REST catch-up to ensure zero gap
           performCatchup();
 
-          // Start Heartbeat every 25 seconds
+          // Start Heartbeat every 60 seconds
           if (heartbeatIntervalRef.current)
             clearInterval(heartbeatIntervalRef.current);
           heartbeatIntervalRef.current = setInterval(() => {
@@ -173,7 +191,7 @@ export function useSpaceRealtime({
                 }),
               );
             }
-          }, 25000);
+          }, 60000);
         };
 
         ws.onmessage = (event) => {
@@ -181,10 +199,22 @@ export function useSpaceRealtime({
           try {
             const msg = JSON.parse(event.data);
 
-            if (msg.type === "error" && msg.code === "unauthorized") {
+            if (
+              msg.type === "error" &&
+              (msg.code === "unauthorized" || msg.code === "unauthorized_space")
+            ) {
+              if (msg.code === "unauthorized") {
+                authFailedRef.current = true;
+                if (typeof window !== "undefined") {
+                  localStorage.removeItem("mosaic_session_token");
+                }
+              }
               setConnectionStatus("offline");
-              if (reconnectTimeoutRef.current)
+              if (reconnectTimeoutRef.current) {
                 clearTimeout(reconnectTimeoutRef.current);
+                reconnectTimeoutRef.current = null;
+              }
+              ws.close(1008);
               return;
             }
 
@@ -213,17 +243,31 @@ export function useSpaceRealtime({
           }
         };
 
-        let retryCount = 0;
-
-        ws.onclose = () => {
+        ws.onclose = (event: CloseEvent) => {
           if (isUnmounted) return;
           setConnectionStatus("offline");
-          if (heartbeatIntervalRef.current)
+          if (heartbeatIntervalRef.current) {
             clearInterval(heartbeatIntervalRef.current);
+            heartbeatIntervalRef.current = null;
+          }
 
-          // Exponential backoff: 2s, 4s, 8s, 16s, max 30s
-          const delay = Math.min(2000 * Math.pow(1.5, retryCount), 30000);
-          retryCount++;
+          // If rejected due to authentication failure, DO NOT RECONNECT
+          if (
+            authFailedRef.current ||
+            event.code === 1008 ||
+            event.code === 4401 ||
+            event.code === 4403
+          ) {
+            console.warn(
+              `[Mosaic Realtime] WebSocket closed due to authorization failure (code ${event.code}). Stopping reconnection.`,
+            );
+            return;
+          }
+
+          // Exponential backoff: 2s, 3s, 4.5s, 6.75s, max 30s
+          const currentRetry = retryCountRef.current;
+          const delay = Math.min(2000 * Math.pow(1.5, currentRetry), 30000);
+          retryCountRef.current = currentRetry + 1;
 
           if (reconnectTimeoutRef.current)
             clearTimeout(reconnectTimeoutRef.current);
@@ -267,7 +311,7 @@ export function useSpaceRealtime({
         }
       }
     };
-  }, [spaceId, performCatchup, mergeEvents, session?.token, session?.id]);
+  }, [spaceId, isAuthLoading, performCatchup, mergeEvents, session?.token, session?.id]);
 
   return {
     events,
